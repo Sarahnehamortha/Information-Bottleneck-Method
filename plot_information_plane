@@ -1,0 +1,23 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from information_bottleneck import information_bottleneck
+
+
+p_x = np.array([0.5, 0.5])
+p_y_given_x = np.array([[0.9, 0.1],
+                        [0.2, 0.8]])
+num_clusters = 2
+betas = np.linspace(0.1, 20, 50)
+I_xt_list = []
+I_ty_list = []
+
+for beta in betas:
+    _, I_xt, I_ty = information_bottleneck(p_x, p_y_given_x, beta, num_clusters)
+    I_xt_list.append(I_xt)
+    I_ty_list.append(I_ty)
+
+plt.plot(I_xt_list, I_ty_list, marker='o')
+plt.xlabel("I(X;T)")
+plt.ylabel("I(T;Y)")
+plt.title("Information Plane")
+plt.show()
