@@ -23,12 +23,10 @@ The **Information Bottleneck (IB) method**, introduced by Tishby et al., provide
 ## **Usage**
 
 1. **Install dependencies:**  
-```bash
 pip install numpy matplotlib scipy
-Run the plot script:
 
-bash
-Copy code
+2.**Run the plot script:** 
 python plot_information_plane.py
-View results:
+
+3.**View results:** 
 A plot will appear showing I(X;T) on the x-axis and I(T;Y) on the y-axis for different beta values.
