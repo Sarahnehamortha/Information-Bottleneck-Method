@@ -1,31 +1,45 @@
 import numpy as np
+from scipy.stats import entropy
 
-def kl(p, q):
-    p, q = np.array(p), np.array(q)
-    return np.sum(p * np.log((p + 1e-12) / (q + 1e-12)))
+def kl_divergence(p, q):
+    mask = (p > 0)
+    return np.sum(p[mask] * np.log(p[mask] / (q[mask] + 1e-12)))
 
-def ib_simple(p_x, p_y_given_x, beta=5.0, n_clusters=2, n_iter=50):
-    n_x, n_y = p_y_given_x.shape
-    p_t_given_x = np.random.dirichlet(np.ones(n_clusters), size=n_x)
+def mutual_information(p_xy, p_x, p_y):
+    """Compute mutual information I(X;Y) for discrete distributions."""
+    joint = p_x[:, None] * p_y[None, :]
+    ratio = p_xy / (joint + 1e-12)
+    mask = p_xy > 0
+    return np.sum(p_xy[mask] * np.log(ratio[mask]))
 
-    for _ in range(n_iter):
-        p_t = np.sum(p_x[:, None] * p_t_given_x, axis=0)
-        p_y_given_t = (p_t_given_x.T @ (p_x[:, None] * p_y_given_x)) / p_t[:, None]
+def information_bottleneck(p_x, p_y_given_x, beta, num_clusters, num_iterations=100):
+    num_x, num_y = p_y_given_x.shape
+    p_t_given_x = np.random.rand(num_x, num_clusters)
+    p_t_given_x /= p_t_given_x.sum(axis=1, keepdims=True)
 
-        for i in range(n_x):
-            dkl = np.array([kl(p_y_given_x[i], p_y_given_t[j]) for j in range(n_clusters)])
-            p_t_given_x[i] = p_t * np.exp(-beta * dkl)
-            p_t_given_x[i] /= np.sum(p_t_given_x[i])
+    for _ in range(num_iterations):
+        p_t = (p_x[:, None] * p_t_given_x).sum(axis=0)
+        p_y_given_t = np.zeros((num_clusters, num_y))
+        for t in range(num_clusters):
+            for y in range(num_y):
+                p_y_given_t[t, y] = np.sum(p_t_given_x[:, t] * p_x * p_y_given_x[:, y])
+            if p_t[t] > 0:
+                p_y_given_t[t, :] /= p_t[t]
+        for x in range(num_x):
+            D_kl = np.array([kl_divergence(p_y_given_x[x, :], p_y_given_t[t, :]) 
+                             for t in range(num_clusters)])
+            p_t_given_x[x, :] = p_t * np.exp(-beta * D_kl)
+            p_t_given_x[x, :] /= np.sum(p_t_given_x[x, :])
 
     p_xt = p_x[:, None] * p_t_given_x
-    I_x_t = np.sum(p_xt * np.log((p_t_given_x + 1e-12) / (p_t[None, :] + 1e-12)))
-    I_t_y = np.sum((p_t[:, None] * p_y_given_t) * np.log((p_y_given_t + 1e-12) / np.sum(p_x[:, None]*p_y_given_x, axis=0)[None,:]))
+    p_y = (p_x[:, None] * p_y_given_x).sum(axis=0)
+    p_yt = np.zeros((num_clusters, num_y))
+    for t in range(num_clusters):
+        for y in range(num_y):
+            p_yt[t, y] = np.sum(p_x * p_t_given_x[:, t] * p_y_given_x[:, y])
 
-    return p_t_given_x, I_x_t, I_t_y
+    I_xt = mutual_information(p_xt, p_x, p_t)
 
-p_x = np.array([0.5, 0.5])
-p_y_given_x = np.array([[0.9, 0.1], [0.2, 0.8]])
+    I_ty = mutual_information(p_yt, p_t, p_y)
 
-p_t_given_x, I_x_t, I_t_y = ib_simple(p_x, p_y_given_x, beta=5.0)
-print("p(t|x):\n", p_t_given_x)
-print("I(X;T):", round(I_x_t, 4), "| I(T;Y):", round(I_t_y, 4))
+    return p_t_given_x, I_xt, I_ty
