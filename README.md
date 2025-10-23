@@ -22,7 +22,7 @@ The **Information Bottleneck (IB) method**, introduced by Tishby et al., provide
 
 ## **Usage**
 
-1. **Install dependencies:**  
+1.**Install dependencies:**  
 pip install numpy matplotlib scipy
 
 2.**Run the plot script:** 
